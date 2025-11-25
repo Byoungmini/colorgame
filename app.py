@@ -30,6 +30,7 @@ st.markdown("""
         border: none !important;
         font-weight: bold !important;
         transition: all 0.2s !important;
+        white-space: nowrap !important; /* 텍스트 줄바꿈 방지 */
     }
     .stButton > button:hover {
         transform: scale(1.05);
@@ -57,6 +58,38 @@ st.markdown("""
     /* h1 태그 기본 마진 제거 */
     h1 {
         padding: 0 !important;
+    }
+
+    /* --- 모바일 반응형 처리 (핵심) --- */
+    @media (max-width: 640px) {
+        /* 가로 배치 강제 유지 */
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
+            overflow-x: hidden !important;
+        }
+        
+        /* 컬럼 너비 유동적 조정 */
+        div[data-testid="column"] {
+            width: auto !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            padding: 0 1px !important;
+        }
+        
+        /* 제목 마진 조정 (모바일에서는 덜 띄움) */
+        .app-title {
+            margin-top: 40px !important; 
+            font-size: 20px !important;
+        }
+        
+        /* 버튼 텍스트 크기 축소 */
+        .stButton > button {
+            font-size: 9px !important;
+            padding: 0 !important;
+            height: 24px !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -146,15 +179,15 @@ if st.session_state.get('hint_popup_shown', False):
 
 # --- UI 구성 ---
 
-# 1. 제목 (크기 축소, 마진 축소)
+# 1. 제목 (클래스 추가하여 CSS 제어)
 st.markdown("""
-<div style="text-align: center; margin-top: 20px; margin-bottom: 15px;">
+<div class="app-title" style="text-align: center; margin-top: 60px; margin-bottom: 15px;">
     <h1 style="margin: 0; padding: 0; font-size: 24px !important; color: #333 !important; font-weight: 800;">🎨 Guess My Color</h1>
     <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">RGB 값을 조정해서 목표 색상과 일치시켜보세요!</p>
 </div>
 """, unsafe_allow_html=True)
 
-# 2. 색상 패널 (크기 축소)
+# 2. 색상 패널
 c_hex = rgb_to_hex(st.session_state.current_color)
 t_hex = rgb_to_hex(st.session_state.target_color)
 st.markdown(f"""
@@ -172,7 +205,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 3. RGB 컨트롤 (컴팩트하게)
+# 3. RGB 컨트롤
 channels = [("Red", 0, "#D32F2F"), ("Green", 1, "#388E3C"), ("Blue", 2, "#1976D2")]
 deltas = [-100, -10, -1, 1, 10, 100]
 
@@ -188,7 +221,6 @@ for name, idx, color_code in channels:
     
     # 중앙 값
     with cols[3]:
-        # 마진 조정 (버튼 높이와 맞춤)
         st.markdown(f"""
         <div style="text-align: center; line-height: 1; margin-top: 6px;">
             <div style="color: {color_code}; font-size: 14px; font-weight: bold;">{st.session_state.current_color[idx]}</div>
@@ -205,7 +237,7 @@ for name, idx, color_code in channels:
 
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
-# 4. 액션 버튼 (작게)
+# 4. 액션 버튼
 ac1, ac2, ac3 = st.columns(3)
 with ac1:
     if st.button("색상 확인", key="btn_check", use_container_width=True):
@@ -220,7 +252,7 @@ with ac3:
         reset_game()
         st.rerun()
 
-# 5. 통계 (작게)
+# 5. 통계
 st.markdown(f"""
 <div style="text-align: center; margin-top: 15px; padding: 5px; background-color: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
     <span style="margin-right: 15px; font-size: 11px;"><strong>시도:</strong> {st.session_state.attempts}회</span>
@@ -229,8 +261,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# CSS로 버튼 색상 강제 지정 (컴팩트 버전)
-# nth-of-type 인덱스는 그대로 유지 (구조가 같으므로)
+# CSS로 버튼 색상 강제 지정 (nth-of-type 유지)
 st.markdown("""
 <style>
     /* Red Buttons */
@@ -264,7 +295,7 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:nth-of-type(5) div[data-testid="column"]:nth-child(6) button { background-color: #CCCCFF !important; color: black !important; border: 1px solid #9999FF !important; }
     div[data-testid="stHorizontalBlock"]:nth-of-type(5) div[data-testid="column"]:nth-child(7) button { background-color: #9999FF !important; color: black !important; border: 1px solid #6666FF !important; }
 
-    /* 공통 RGB 버튼 사이즈 (축소) */
+    /* 공통 RGB 버튼 사이즈 */
     div[data-testid="stHorizontalBlock"]:nth-of-type(3) button,
     div[data-testid="stHorizontalBlock"]:nth-of-type(4) button,
     div[data-testid="stHorizontalBlock"]:nth-of-type(5) button {
@@ -275,7 +306,7 @@ st.markdown("""
         line-height: 1 !important;
     }
 
-    /* 액션 버튼 (크기 축소) */
+    /* 액션 버튼 */
     div[data-testid="stHorizontalBlock"]:nth-of-type(7) div[data-testid="column"]:nth-child(1) button { background-color: #4CAF50 !important; color: white !important; height: 32px !important; min-height: 32px !important; font-size: 12px !important; }
     div[data-testid="stHorizontalBlock"]:nth-of-type(7) div[data-testid="column"]:nth-child(2) button { background-color: #9C27B0 !important; color: white !important; height: 32px !important; min-height: 32px !important; font-size: 12px !important; }
     div[data-testid="stHorizontalBlock"]:nth-of-type(7) div[data-testid="column"]:nth-child(3) button { background-color: #2196F3 !important; color: white !important; height: 32px !important; min-height: 32px !important; font-size: 12px !important; }
