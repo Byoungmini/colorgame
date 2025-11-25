@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 커스텀 CSS - 버튼 색상 포함
+# 커스텀 CSS
 st.markdown("""
 <style>
     .main {
@@ -38,19 +38,12 @@ st.markdown("""
         border: 1px solid rgba(0,0,0,0.2) !important;
         transition: all 0.2s !important;
     }
-    /* RGB 조정 버튼만 더 작게 - 강력한 선택자 */
-    button[data-testid="baseButton-secondary"][key*="Red_"],
-    button[data-testid="baseButton-secondary"][key*="Green_"],
-    button[data-testid="baseButton-secondary"][key*="Blue_"],
-    div[data-testid="stButton"] button[key*="Red_"],
-    div[data-testid="stButton"] button[key*="Green_"],
-    div[data-testid="stButton"] button[key*="Blue_"] {
+    /* RGB 조정 버튼만 더 작게 */
+    div[data-testid="column"] button {
         height: 18px !important;
         min-height: 18px !important;
-        max-height: 18px !important;
-        font-size: 8px !important;
+        font-size: 9px !important;
         padding: 0.05rem 0.15rem !important;
-        line-height: 1 !important;
     }
     .stButton>button:hover {
         transform: scale(1.05);
@@ -62,12 +55,6 @@ st.markdown("""
     /* 색상 패널 간격 최소화 */
     div[data-testid="stHorizontalBlock"] {
         gap: 2px !important;
-        margin: 0 !important;
-    }
-    div[data-testid="stHorizontalBlock"] > div:has(.color-box) {
-        padding-left: 2px !important;
-        padding-right: 2px !important;
-        flex: 1 1 0% !important;
     }
     .color-box {
         width: 90px !important;
@@ -101,14 +88,25 @@ st.markdown("""
     hr {
         margin: 2px 0 !important;
     }
-    .element-container {
-        margin: 0 !important;
-        padding: 0 !important;
+    
+    /* 액션 버튼 색상 */
+    button[key="check_color"], div[data-testid="stButton"]:has(button:contains("색상 확인")) button {
+        background-color: #4CAF50 !important;
+        color: white !important;
+        height: 32px !important;
+        font-size: 12px !important;
     }
-    h4 {
-        font-size: 15px !important;
-        margin: 5px 0 3px 0 !important;
-        text-align: center;
+    button[key="get_hint"], div[data-testid="stButton"]:has(button:contains("힌트")) button {
+        background-color: #9C27B0 !important;
+        color: white !important;
+        height: 32px !important;
+        font-size: 12px !important;
+    }
+    button[key="new_game"], div[data-testid="stButton"]:has(button:contains("새 게임")) button {
+        background-color: #2196F3 !important;
+        color: white !important;
+        height: 32px !important;
+        font-size: 12px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -138,6 +136,9 @@ def initialize_game():
         st.session_state.hints_used = 0
         st.session_state.start_time = None
         st.session_state.game_won = False
+        st.session_state.game_won_checked = False
+        st.session_state.hint_popup_shown = False
+        st.session_state.hint_difference = None
 
 
 def reset_game():
@@ -148,7 +149,9 @@ def reset_game():
     st.session_state.hints_used = 0
     st.session_state.start_time = None
     st.session_state.game_won = False
-    st.session_state.popup_shown = False
+    st.session_state.game_won_checked = False
+    st.session_state.hint_popup_shown = False
+    st.session_state.hint_difference = None
 
 
 def adjust_rgb(channel_idx, delta):
@@ -171,6 +174,8 @@ def check_color():
 def get_hint():
     """힌트 제공"""
     st.session_state.hints_used += 1
+    st.session_state.hint_difference = calculate_color_difference(st.session_state.current_color, st.session_state.target_color)
+    st.session_state.hint_popup_shown = True
 
 
 def calculate_play_time():
@@ -184,186 +189,66 @@ def calculate_play_time():
     return f"{minutes:02d}:{seconds:02d}"
 
 
+@st.dialog("🎉 축하합니다!")
+def show_winner_dialog():
+    play_time = calculate_play_time()
+    st.balloons()
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #4CAF50;">정답을 맞추셨습니다!</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.info(f"""
+    **게임 통계**
+    - 🎯 **목표 색상:** RGB({st.session_state.target_color[0]}, {st.session_state.target_color[1]}, {st.session_state.target_color[2]})
+    - 🔄 **시도 횟수:** {st.session_state.attempts}회
+    - 💡 **힌트 사용:** {st.session_state.hints_used}회
+    - ⏱️ **플레이 시간:** {play_time}
+    """)
+    
+    if st.button("확인", key="winner_ok_btn", use_container_width=True, type="primary"):
+        st.session_state.game_won_checked = True
+        st.rerun()
+
+
+@st.dialog("💡 힌트")
+def show_hint_dialog(difference):
+    st.markdown(f"""
+    <div style="text-align: center;">
+        <p style="font-size: 16px; margin-bottom: 10px;">
+            <strong>현재 색상과 목표 색상의 총 차이값</strong>
+        </p>
+        <p style="font-size: 40px; font-weight: bold; color: #1976D2; margin: 10px 0;">
+            {difference}
+        </p>
+        <p style="font-size: 14px; color: #666; margin-top: 10px;">
+            차이값이 <strong>0</strong>이면 정답입니다! 🎯
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("확인", key="hint_ok_btn", use_container_width=True, type="primary"):
+        st.session_state.hint_popup_shown = False
+        st.rerun()
+
+
 # 게임 초기화
 initialize_game()
 
-# 팝업 모달 스타일 추가
-st.markdown("""
-<style>
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
-    }
-    .modal-overlay.show {
-        display: flex;
-    }
-    .modal-content {
-        background-color: white;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        max-width: 500px;
-        width: 90%;
-        animation: slideIn 0.3s ease-out;
-    }
-    @keyframes slideIn {
-        from {
-            transform: translateY(-50px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    .modal-header {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .modal-title {
-        font-size: 24px;
-        font-weight: bold;
-        color: #4CAF50;
-        margin-bottom: 10px;
-    }
-    .modal-stats {
-        background-color: #E3F2FD;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
-    .modal-stats h3 {
-        margin-top: 0;
-        color: #1976D2;
-        font-size: 18px;
-    }
-    .modal-stats p {
-        margin: 8px 0;
-        font-size: 14px;
-        color: #333;
-    }
-    .modal-close {
-        width: 100%;
-        padding: 12px;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .modal-close:hover {
-        background-color: #45a049;
-    }
-</style>
-""", unsafe_allow_html=True)
+# 팝업 표시 로직
+if st.session_state.game_won and not st.session_state.game_won_checked:
+    show_winner_dialog()
 
-# 제목
+if st.session_state.get('hint_popup_shown', False) and st.session_state.hint_difference is not None:
+    show_hint_dialog(st.session_state.hint_difference)
+
+
+# UI 구성
 st.markdown("<h1 style='margin: 0 0 2px 0;'>🎨 Guess My Color</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 11px; color: #666; margin: 2px 0 5px 0;'>RGB 값을 조정해서 목표 색상과 일치시켜보세요!</p>", unsafe_allow_html=True)
 
-# 게임 승리 시 팝업 모달 표시
-if st.session_state.game_won:
-    play_time = calculate_play_time()
-    
-    # 팝업이 이미 표시되었는지 확인하는 플래그
-    if 'popup_shown' not in st.session_state or not st.session_state.popup_shown:
-        st.session_state.popup_shown = True
-        
-        popup_html = f"""
-        <div class="modal-overlay show" id="gameStatsModal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center;">
-            <div class="modal-content" style="background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; width: 90%;" onclick="event.stopPropagation();">
-                <div class="modal-header">
-                    <div class="modal-title">🎉 축하합니다!</div>
-                    <div style="font-size: 16px; color: #666;">정답을 맞추셨습니다!</div>
-                </div>
-                <div class="modal-stats">
-                    <h3>게임 통계</h3>
-                    <p><strong>목표 색상:</strong> RGB({st.session_state.target_color[0]}, {st.session_state.target_color[1]}, {st.session_state.target_color[2]})</p>
-                    <p><strong>시도 횟수:</strong> {st.session_state.attempts}회</p>
-                    <p><strong>힌트 사용:</strong> {st.session_state.hints_used}회</p>
-                    <p><strong>플레이 시간:</strong> {play_time}</p>
-                </div>
-                <button class="modal-close" id="modalCloseBtn" style="width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; margin-top: 10px;">
-                    확인
-                </button>
-            </div>
-        </div>
-        <script>
-            (function() {{
-                function initModal() {{
-                    const modal = document.getElementById('gameStatsModal');
-                    const closeBtn = document.getElementById('modalCloseBtn');
-                    
-                    if (!modal) {{
-                        setTimeout(initModal, 100);
-                        return;
-                    }}
-                    
-                    // 확인 버튼 클릭 - Streamlit 버튼 트리거
-                    if (closeBtn) {{
-                        closeBtn.addEventListener('click', function(e) {{
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Streamlit 버튼 찾아서 클릭
-                            const streamlitButton = window.parent.document.querySelector('button[key="close_modal_btn"]') || 
-                                                   document.querySelector('button[key="close_modal_btn"]');
-                            if (streamlitButton) {{
-                                streamlitButton.click();
-                            }} else {{
-                                // 폴백: 모달 숨기기
-                                modal.style.display = 'none';
-                                st.session_state.popup_shown = false;
-                            }}
-                        }}, true);
-                    }}
-                    
-                    // 오버레이 클릭 시 닫기
-                    modal.addEventListener('click', function(e) {{
-                        if (e.target === modal) {{
-                            const streamlitButton = window.parent.document.querySelector('button[key="close_modal_btn"]') || 
-                                                   document.querySelector('button[key="close_modal_btn"]');
-                            if (streamlitButton) streamlitButton.click();
-                        }}
-                    }}, true);
-                }}
-                
-                setTimeout(initModal, 50);
-                if (document.readyState === 'loading') {{
-                    document.addEventListener('DOMContentLoaded', initModal);
-                }} else {{
-                    initModal();
-                }}
-            }})();
-        </script>
-        """
-        st.markdown(popup_html, unsafe_allow_html=True)
-        
-        # Streamlit 확인 버튼 (숨김)
-        if st.button("확인", key="close_modal_btn"):
-            st.session_state.popup_shown = False
-            st.rerun()
-        
-        # 숨김 버튼 스타일
-        st.markdown("""
-        <style>
-        button[key="close_modal_btn"] {
-            display: none !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-# 색상 패널 (간격 최소화)
+# 색상 패널
 col1, col2 = st.columns(2, gap="small")
 
 with col1:
@@ -380,36 +265,23 @@ with col2:
     st.markdown(f"""
     <div class="color-box" style="background-color: {target_hex};"></div>
     """, unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 9px; margin: 1px 0 0 0; color: #666;'>???</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 9px; margin: 1px 0 0 0; color: #666;'>목표를 맞춰보세요!</p>", unsafe_allow_html=True)
 
-# RGB 조정 컨트롤 (제목 제거)
-
+# RGB 조정 컨트롤
 # 버튼 색상 정의
 button_styles = {
-    ("Red", -100): ("#990000", "white"),
-    ("Red", -10): ("#CC0000", "white"),
-    ("Red", -1): ("#FF3333", "white"),
-    ("Red", 1): ("#FFE6E6", "black"),
-    ("Red", 10): ("#FFCCCC", "black"),
-    ("Red", 100): ("#FF9999", "black"),
-    ("Green", -100): ("#006600", "white"),
-    ("Green", -10): ("#009900", "white"),
-    ("Green", -1): ("#00CC00", "white"),
-    ("Green", 1): ("#E6FFE6", "black"),
-    ("Green", 10): ("#CCFFCC", "black"),
-    ("Green", 100): ("#99FF99", "black"),
-    ("Blue", -100): ("#000099", "white"),
-    ("Blue", -10): ("#0000CC", "white"),
-    ("Blue", -1): ("#3333FF", "white"),
-    ("Blue", 1): ("#E6E6FF", "black"),
-    ("Blue", 10): ("#CCCCFF", "black"),
-    ("Blue", 100): ("#9999FF", "black"),
+    ("Red", -100): ("#990000", "white"), ("Red", -10): ("#CC0000", "white"), ("Red", -1): ("#FF3333", "white"),
+    ("Red", 1): ("#FFE6E6", "black"), ("Red", 10): ("#FFCCCC", "black"), ("Red", 100): ("#FF9999", "black"),
+    ("Green", -100): ("#006600", "white"), ("Green", -10): ("#009900", "white"), ("Green", -1): ("#00CC00", "white"),
+    ("Green", 1): ("#E6FFE6", "black"), ("Green", 10): ("#CCFFCC", "black"), ("Green", 100): ("#99FF99", "black"),
+    ("Blue", -100): ("#000099", "white"), ("Blue", -10): ("#0000CC", "white"), ("Blue", -1): ("#3333FF", "white"),
+    ("Blue", 1): ("#E6E6FF", "black"), ("Blue", 10): ("#CCCCFF", "black"), ("Blue", 100): ("#9999FF", "black"),
 }
 
 channels = [("Red", 0), ("Green", 1), ("Blue", 2)]
 deltas = [-100, -10, -1, +1, +10, +100]
 
-# 모든 버튼 스타일을 한 번에 생성
+# CSS 주입을 위한 리스트
 css_rules = []
 for channel_name, _ in channels:
     for delta in deltas:
@@ -421,15 +293,12 @@ for channel_name, _ in channels:
             background-color: {bg_color} !important;
             color: {text_color} !important;
         }}""")
-
-# CSS 주입
 st.markdown(f"<style>{''.join(css_rules)}</style>", unsafe_allow_html=True)
 
 for channel_name, channel_idx in channels:
     label_colors = {"Red": "#CC0000", "Green": "#009900", "Blue": "#0000CC"}
     current_value = st.session_state.current_color[channel_idx]
     
-    # RGB 조정 컨트롤 레이아웃: 버튼들 - 중앙 값 표시 - 버튼들
     cols = st.columns([1, 1, 1, 0.5, 1, 1, 1], gap="small")
     
     # 왼쪽 버튼들 (-100, -10, -1)
@@ -437,6 +306,7 @@ for channel_name, channel_idx in channels:
         with cols[i]:
             button_key = f"{channel_name}_{delta}"
             bg_color, text_color = button_styles[(channel_name, delta)]
+            # 인라인 스타일로 확실하게 적용
             st.markdown(f"""
             <style>
             div:has(button[key="{button_key}"]) button {{
@@ -450,12 +320,12 @@ for channel_name, channel_idx in channels:
                 adjust_rgb(channel_idx, delta)
                 st.rerun()
     
-    # 중앙에 현재 값 표시 (큰 숫자)
+    # 중앙에 현재 값 표시
     with cols[3]:
         st.markdown(f"""
         <div style="text-align: center; padding: 2px 0;">
-                    <p style='color: {label_colors[channel_name]}; font-size: 15px; font-weight: bold; margin: 0;'>{current_value}</p>
-                    <p style='color: {label_colors[channel_name]}; font-size: 9px; margin: 0;'>{channel_name}</p>
+            <p style='color: {label_colors[channel_name]}; font-size: 15px; font-weight: bold; margin: 0;'>{current_value}</p>
+            <p style='color: {label_colors[channel_name]}; font-size: 9px; margin: 0;'>{channel_name}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -479,27 +349,7 @@ for channel_name, channel_idx in channels:
 
 st.markdown("<hr style='margin: 2px 0;'>", unsafe_allow_html=True)
 
-# 액션 버튼 스타일
-st.markdown("""
-<style>
-button[key="check_color"],
-button:has(+ div:contains("색상 확인")) {
-    background-color: #4CAF50 !important;
-    color: white !important;
-}
-button[key="get_hint"],
-button:has(+ div:contains("힌트")) {
-    background-color: #9C27B0 !important;
-    color: white !important;
-}
-button[key="new_game"],
-button:has(+ div:contains("새 게임")) {
-    background-color: #2196F3 !important;
-    color: white !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
+# 액션 버튼
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -512,8 +362,7 @@ with col2:
     hint_btn = st.button("힌트", key="get_hint", disabled=st.session_state.game_won, use_container_width=True)
     if hint_btn:
         get_hint()
-        difference = calculate_color_difference(st.session_state.current_color, st.session_state.target_color)
-        st.info(f"현재 색상과 목표 색상의 총 차이값: **{difference}**\n\n(차이값이 0이면 정답입니다)")
+        st.rerun()
 
 with col3:
     new_game_btn = st.button("새 게임", key="new_game", use_container_width=True)
@@ -531,29 +380,17 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# JavaScript로 동적 색상 적용 (CSS가 작동하지 않을 경우를 대비)
+# JavaScript로 버튼 스타일 강제 적용 (백업용)
 st.markdown("""
 <script>
 function styleButtons() {
     const colors = {
-        'Red_-100': {bg: '#990000', text: 'white'},
-        'Red_-10': {bg: '#CC0000', text: 'white'},
-        'Red_-1': {bg: '#FF3333', text: 'white'},
-        'Red_1': {bg: '#FFE6E6', text: 'black'},
-        'Red_10': {bg: '#FFCCCC', text: 'black'},
-        'Red_100': {bg: '#FF9999', text: 'black'},
-        'Green_-100': {bg: '#006600', text: 'white'},
-        'Green_-10': {bg: '#009900', text: 'white'},
-        'Green_-1': {bg: '#00CC00', text: 'white'},
-        'Green_1': {bg: '#E6FFE6', text: 'black'},
-        'Green_10': {bg: '#CCFFCC', text: 'black'},
-        'Green_100': {bg: '#99FF99', text: 'black'},
-        'Blue_-100': {bg: '#000099', text: 'white'},
-        'Blue_-10': {bg: '#0000CC', text: 'white'},
-        'Blue_-1': {bg: '#3333FF', text: 'white'},
-        'Blue_1': {bg: '#E6E6FF', text: 'black'},
-        'Blue_10': {bg: '#CCCCFF', text: 'black'},
-        'Blue_100': {bg: '#9999FF', text: 'black'}
+        'Red_-100': {bg: '#990000', text: 'white'}, 'Red_-10': {bg: '#CC0000', text: 'white'}, 'Red_-1': {bg: '#FF3333', text: 'white'},
+        'Red_1': {bg: '#FFE6E6', text: 'black'}, 'Red_10': {bg: '#FFCCCC', text: 'black'}, 'Red_100': {bg: '#FF9999', text: 'black'},
+        'Green_-100': {bg: '#006600', text: 'white'}, 'Green_-10': {bg: '#009900', text: 'white'}, 'Green_-1': {bg: '#00CC00', text: 'white'},
+        'Green_1': {bg: '#E6FFE6', text: 'black'}, 'Green_10': {bg: '#CCFFCC', text: 'black'}, 'Green_100': {bg: '#99FF99', text: 'black'},
+        'Blue_-100': {bg: '#000099', text: 'white'}, 'Blue_-10': {bg: '#0000CC', text: 'white'}, 'Blue_-1': {bg: '#3333FF', text: 'white'},
+        'Blue_1': {bg: '#E6E6FF', text: 'black'}, 'Blue_10': {bg: '#CCCCFF', text: 'black'}, 'Blue_100': {bg: '#9999FF', text: 'black'}
     };
     
     document.querySelectorAll('button[data-testid="baseButton-secondary"]').forEach(btn => {
@@ -561,92 +398,26 @@ function styleButtons() {
         const parent = btn.closest('div');
         let key = null;
         
-        // 키 찾기
-        ['Red', 'Green', 'Blue'].forEach(channel => {
-            if (parent && parent.textContent.includes(channel)) {
-                key = channel + '_' + btnText.replace(/[+]/g, '');
-            }
-        });
+        if (parent) {
+            if (parent.parentElement && parent.parentElement.textContent.includes('Red')) key = 'Red_' + btnText.replace(/[+]/g, '');
+            else if (parent.parentElement && parent.parentElement.textContent.includes('Green')) key = 'Green_' + btnText.replace(/[+]/g, '');
+            else if (parent.parentElement && parent.parentElement.textContent.includes('Blue')) key = 'Blue_' + btnText.replace(/[+]/g, '');
+        }
         
         if (key && colors[key]) {
             btn.style.setProperty('background-color', colors[key].bg, 'important');
             btn.style.setProperty('color', colors[key].text, 'important');
-            // RGB 조정 버튼 크기 강제로 줄이기
+            // RGB 버튼 크기 강제
             btn.style.setProperty('height', '18px', 'important');
             btn.style.setProperty('min-height', '18px', 'important');
-            btn.style.setProperty('max-height', '18px', 'important');
-            btn.style.setProperty('font-size', '8px', 'important');
+            btn.style.setProperty('font-size', '9px', 'important');
             btn.style.setProperty('padding', '0.05rem 0.15rem', 'important');
-            btn.style.setProperty('line-height', '1', 'important');
-            // 모든 크기 관련 속성 강제 설정
-            if (btn.parentElement) {
-                btn.parentElement.style.height = '18px';
-                btn.parentElement.style.minHeight = '18px';
-            }
-        }
-    });
-    
-    // 액션 버튼
-    document.querySelectorAll('button').forEach(btn => {
-        const text = btn.textContent.trim();
-        if (text === '색상 확인') {
-            btn.style.setProperty('background-color', '#4CAF50', 'important');
-            btn.style.setProperty('color', 'white', 'important');
-        } else if (text === '힌트') {
-            btn.style.setProperty('background-color', '#9C27B0', 'important');
-            btn.style.setProperty('color', 'white', 'important');
-        } else if (text === '새 게임') {
-            btn.style.setProperty('background-color', '#2196F3', 'important');
-            btn.style.setProperty('color', 'white', 'important');
         }
     });
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', styleButtons);
-} else {
-    styleButtons();
-}
-
-// Streamlit 업데이트 감지
-const observer = new MutationObserver(function(mutations) {
-    styleButtons();
-    // RGB 버튼 크기 강제 조정
-    document.querySelectorAll('button[data-testid="baseButton-secondary"]').forEach(btn => {
-        const btnText = btn.textContent.trim();
-        if (btnText.match(/^[+-]?\d+$/)) {
-            const parent = btn.closest('div');
-            if (parent && (parent.textContent.includes('Red') || parent.textContent.includes('Green') || parent.textContent.includes('Blue'))) {
-                btn.style.setProperty('height', '18px', 'important');
-                btn.style.setProperty('min-height', '18px', 'important');
-                btn.style.setProperty('max-height', '18px', 'important');
-                btn.style.setProperty('font-size', '8px', 'important');
-                btn.style.setProperty('padding', '0.05rem 0.15rem', 'important');
-                btn.style.setProperty('line-height', '1', 'important');
-            }
-        }
-    });
-});
-observer.observe(document.body, { childList: true, subtree: true });
-
-// 추가로 주기적으로 체크 (더블 체크)
-setInterval(function() {
-    document.querySelectorAll('button').forEach(btn => {
-        const btnText = btn.textContent.trim();
-        if (btnText.match(/^[+-]?\d+$/)) {
-            const parent = btn.closest('div');
-            if (parent && (parent.textContent.includes('Red') || parent.textContent.includes('Green') || parent.textContent.includes('Blue'))) {
-                if (parseInt(getComputedStyle(btn).height) > 20) {
-                    btn.style.setProperty('height', '18px', 'important');
-                    btn.style.setProperty('min-height', '18px', 'important');
-                    btn.style.setProperty('max-height', '18px', 'important');
-                    btn.style.setProperty('font-size', '8px', 'important');
-                    btn.style.setProperty('padding', '0.05rem 0.15rem', 'important');
-                }
-            }
-        }
-    });
-}, 300);
+// 주기적으로 실행
+setInterval(styleButtons, 500);
 </script>
 """, unsafe_allow_html=True)
 
@@ -658,15 +429,6 @@ with st.sidebar:
     2. RGB 값을 조정하여 **현재 색상**을 목표 색상과 일치시키세요
     3. **색상 확인** 버튼으로 정답을 확인하세요
     4. 막히면 **힌트** 버튼을 사용하세요
-    
-    **RGB란?**
-    - Red(빨강), Green(초록), Blue(파랑)
-    - 각 값은 0~255 범위입니다
-    - 세 색을 섞어 모든 색을 만들 수 있습니다
-    
-    **버튼 색상 의미:**
-    - 진한 색 버튼(-100, -10, -1): 값을 빼기
-    - 밝은 색 버튼(+1, +10, +100): 값을 더하기
     """)
     
     st.markdown("---")
