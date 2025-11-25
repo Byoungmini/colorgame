@@ -23,8 +23,8 @@ st.markdown("""
         padding-top: 0.5rem !important;
     }
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
         max-width: 750px;
     }
     .stButton>button {
@@ -59,37 +59,47 @@ st.markdown("""
     div[data-testid="column"] {
         padding: 0 1px !important;
     }
+    /* 색상 패널 간격 최소화 */
+    div[data-testid="stHorizontalBlock"] {
+        gap: 2px !important;
+        margin: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div:has(.color-box) {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+        flex: 1 1 0% !important;
+    }
     .color-box {
-        width: 110px !important;
-        height: 110px !important;
-        border-radius: 6px;
+        width: 90px !important;
+        height: 90px !important;
+        border-radius: 5px;
         border: 2px solid #333;
-        margin: 2px auto !important;
+        margin: 1px auto !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .stats-box {
         background-color: white;
-        padding: 5px;
-        border-radius: 5px;
+        padding: 4px;
+        border-radius: 4px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 2px 0 !important;
+        margin: 1px 0 !important;
     }
     h1 {
         color: #333333;
         text-align: center;
-        margin: 0 0 5px 0 !important;
-        font-size: 22px !important;
+        margin: 0 0 2px 0 !important;
+        font-size: 18px !important;
         padding: 0;
     }
     .rgb-label {
-        font-size: 13px !important;
+        font-size: 12px !important;
         font-weight: bold;
         text-align: center;
-        margin: 2px 0 !important;
-        line-height: 1.1;
+        margin: 1px 0 !important;
+        line-height: 1;
     }
     hr {
-        margin: 3px 0 !important;
+        margin: 2px 0 !important;
     }
     .element-container {
         margin: 0 !important;
@@ -259,8 +269,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 제목
-st.markdown("<h1 style='margin: 0 0 3px 0;'>🎨 Guess My Color</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 13px; color: #666; margin: 5px 0 10px 0;'>RGB 값을 조정해서 목표 색상과 일치시켜보세요!</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='margin: 0 0 2px 0;'>🎨 Guess My Color</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 11px; color: #666; margin: 2px 0 5px 0;'>RGB 값을 조정해서 목표 색상과 일치시켜보세요!</p>", unsafe_allow_html=True)
 
 # 게임 승리 시 팝업 모달 표시
 if st.session_state.game_won:
@@ -284,7 +294,7 @@ if st.session_state.game_won:
                     <p><strong>힌트 사용:</strong> {st.session_state.hints_used}회</p>
                     <p><strong>플레이 시간:</strong> {play_time}</p>
                 </div>
-                <button class="modal-close" id="modalCloseBtn" type="button" style="width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; margin-top: 10px;">
+                <button class="modal-close" id="modalCloseBtn" style="width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; margin-top: 10px;">
                     확인
                 </button>
             </div>
@@ -300,51 +310,34 @@ if st.session_state.game_won:
                         return;
                     }}
                     
-                    // 확인 버튼 클릭 이벤트 - 여러 방법으로 시도
+                    // 확인 버튼 클릭 - Streamlit 버튼 트리거
                     if (closeBtn) {{
-                        // onclick 속성 직접 설정
-                        closeBtn.setAttribute('onclick', 'this.closest(".modal-overlay").style.display="none"; return false;');
-                        
-                        // addEventListener도 추가
                         closeBtn.addEventListener('click', function(e) {{
                             e.preventDefault();
                             e.stopPropagation();
-                            e.cancelBubble = true;
-                            if (modal) {{
+                            // Streamlit 버튼 찾아서 클릭
+                            const streamlitButton = window.parent.document.querySelector('button[key="close_modal_btn"]') || 
+                                                   document.querySelector('button[key="close_modal_btn"]');
+                            if (streamlitButton) {{
+                                streamlitButton.click();
+                            }} else {{
+                                // 폴백: 모달 숨기기
                                 modal.style.display = 'none';
-                                modal.style.visibility = 'hidden';
+                                st.session_state.popup_shown = false;
                             }}
-                            return false;
-                        }}, true);
-                        
-                        // 마우스 이벤트도 추가
-                        closeBtn.addEventListener('mousedown', function(e) {{
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (modal) {{
-                                modal.style.display = 'none';
-                            }}
-                            return false;
                         }}, true);
                     }}
                     
                     // 오버레이 클릭 시 닫기
                     modal.addEventListener('click', function(e) {{
-                        if (e.target === modal || e.target.classList.contains('modal-overlay')) {{
-                            modal.style.display = 'none';
+                        if (e.target === modal) {{
+                            const streamlitButton = window.parent.document.querySelector('button[key="close_modal_btn"]') || 
+                                                   document.querySelector('button[key="close_modal_btn"]');
+                            if (streamlitButton) streamlitButton.click();
                         }}
                     }}, true);
-                    
-                    // ESC 키로 닫기
-                    function handleEscape(e) {{
-                        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {{
-                            modal.style.display = 'none';
-                        }}
-                    }}
-                    document.addEventListener('keydown', handleEscape);
                 }}
                 
-                // 즉시 실행 + 지연 실행
                 setTimeout(initModal, 50);
                 if (document.readyState === 'loading') {{
                     document.addEventListener('DOMContentLoaded', initModal);
@@ -355,28 +348,41 @@ if st.session_state.game_won:
         </script>
         """
         st.markdown(popup_html, unsafe_allow_html=True)
+        
+        # Streamlit 확인 버튼 (숨김)
+        if st.button("확인", key="close_modal_btn"):
+            st.session_state.popup_shown = False
+            st.rerun()
+        
+        # 숨김 버튼 스타일
+        st.markdown("""
+        <style>
+        button[key="close_modal_btn"] {
+            display: none !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
-# 색상 패널
-col1, col2 = st.columns(2)
+# 색상 패널 (간격 최소화)
+col1, col2 = st.columns(2, gap="small")
 
 with col1:
-    st.markdown("<p style='text-align: center; font-weight: bold; font-size: 13px; margin: 0 0 2px 0;'>현재 색상</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: bold; font-size: 11px; margin: 0 0 1px 0;'>현재 색상</p>", unsafe_allow_html=True)
     current_hex = rgb_to_hex(st.session_state.current_color)
     st.markdown(f"""
     <div class="color-box" style="background-color: {current_hex};"></div>
     """, unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; font-size: 10px; margin: 2px 0 0 0;'>RGB: ({st.session_state.current_color[0]}, {st.session_state.current_color[1]}, {st.session_state.current_color[2]})</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; font-size: 9px; margin: 1px 0 0 0;'>RGB: ({st.session_state.current_color[0]}, {st.session_state.current_color[1]}, {st.session_state.current_color[2]})</p>", unsafe_allow_html=True)
 
 with col2:
-    st.markdown("<p style='text-align: center; font-weight: bold; font-size: 13px; margin: 0 0 2px 0;'>목표 색상</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: bold; font-size: 11px; margin: 0 0 1px 0;'>목표 색상</p>", unsafe_allow_html=True)
     target_hex = rgb_to_hex(st.session_state.target_color)
     st.markdown(f"""
     <div class="color-box" style="background-color: {target_hex};"></div>
     """, unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 10px; margin: 2px 0 0 0; color: #666;'>목표를 맞춰보세요!</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 9px; margin: 1px 0 0 0; color: #666;'>???</p>", unsafe_allow_html=True)
 
-# RGB 조정 컨트롤
-st.markdown("#### 🎛️ RGB 값 조정")
+# RGB 조정 컨트롤 (제목 제거)
 
 # 버튼 색상 정의
 button_styles = {
@@ -447,9 +453,9 @@ for channel_name, channel_idx in channels:
     # 중앙에 현재 값 표시 (큰 숫자)
     with cols[3]:
         st.markdown(f"""
-        <div style="text-align: center; padding: 5px 0;">
-            <p style='color: {label_colors[channel_name]}; font-size: 18px; font-weight: bold; margin: 0;'>{current_value}</p>
-            <p style='color: {label_colors[channel_name]}; font-size: 11px; margin: 0;'>{channel_name}</p>
+        <div style="text-align: center; padding: 2px 0;">
+                    <p style='color: {label_colors[channel_name]}; font-size: 15px; font-weight: bold; margin: 0;'>{current_value}</p>
+                    <p style='color: {label_colors[channel_name]}; font-size: 9px; margin: 0;'>{channel_name}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -471,7 +477,7 @@ for channel_name, channel_idx in channels:
                 adjust_rgb(channel_idx, delta)
                 st.rerun()
 
-st.markdown("---")
+st.markdown("<hr style='margin: 2px 0;'>", unsafe_allow_html=True)
 
 # 액션 버튼 스타일
 st.markdown("""
@@ -518,7 +524,7 @@ with col3:
 # 통계 표시
 st.markdown(f"""
 <div class="stats-box">
-    <p style='text-align: center; font-size: 11px; margin: 0;'>
+    <p style='text-align: center; font-size: 10px; margin: 0;'>
         <strong>시도:</strong> {st.session_state.attempts}회 &nbsp;&nbsp;|&nbsp;&nbsp; 
         <strong>힌트:</strong> {st.session_state.hints_used}회
     </p>
