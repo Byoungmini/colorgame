@@ -350,7 +350,7 @@ if st.session_state.game_won:
                     document.addEventListener('DOMContentLoaded', initModal);
                 }} else {{
                     initModal();
-                }
+                }}
             }})();
         </script>
         """
